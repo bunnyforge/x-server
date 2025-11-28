@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servers - Minecraft K8s Manager</title>
+    <link rel="stylesheet" href="/css/style.css?v=3">
+    <script src="/js/auth.js"></script>
+    <script src="/js/ui.js?v=3"></script>
+    <style>
+        .server-card {
+            background: linear-gradient(145deg, #1e1e2e 0%, #252535 100%);
+            border: 1px solid #3a3a4a;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .server-card:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
+        }
+
+        .server-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .server-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .server-info {
+            flex: 1;
+        }
+
+        .server-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 0.25rem;
+        }
+
+        .server-meta {
+            font-size: 0.875rem;
+            color: #888;
+        }
+
+        .server-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .server-status.status-running {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .server-status.status-error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .server-status.status-creating {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .server-specs {
+            display: flex;
+            background: #1a1a2a;
+            border-radius: 8px;
+            padding: 1rem 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .spec-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-right: 1px solid #3a3a4a;
+        }
+
+        .spec-item:last-child {
+            border-right: none;
+        }
+
+        .spec-label {
+            font-size: 0.65rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .spec-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: baseline;
+        }
+
+        .spec-unit {
+            font-size: 0.7rem;
+            color: #888;
+            font-weight: 400;
+            margin-left: 2px;
+        }
+
+        .server-mods {
+            background: #1a1a2a;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mods-icon {
+            font-size: 1rem;
+        }
+
+        .mods-label {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .mods-value {
+            font-size: 0.85rem;
+            color: #a5d6ff;
+            font-weight: 500;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .server-details {
+            padding: 0.75rem 0;
+            color: #888;
+            font-size: 0.875rem;
+        }
+
+        .server-actions {
+            display: flex;
+            gap: 0.75rem;
+            padding-top: 1rem;
+            border-top: 1px solid #3a3a4a;
+        }
+
+        .server-actions .btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .mode-selector input[type="radio"] {
+            display: none;
+        }
+
+        .mode-card {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 140px;
+            padding: 0.6rem 1rem;
+            border: 2px solid #3a3a4a;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #2a2a3a;
+        }
+
+        .mode-card:hover {
+            border-color: #6366f1;
+            background: #32324a;
+        }
+
+        .mode-selector input[type="radio"]:checked+.mode-card {
+            border-color: #6366f1;
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        .mode-icon {
+            font-size: 1.2rem;
+        }
+
+        .mode-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .mode-desc {
+            display: none;
+        }
+
+        .mods-input-container {
+            background: #1e1e2e;
+            border: 1px solid #3a3a4a;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .mods-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: #252535;
+            border-bottom: 1px solid #3a3a4a;
+        }
+
+        .mods-icon {
+            font-size: 1.1rem;
+        }
+
+        .mods-hint {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .mods-textarea {
+            width: 100%;
+            border: none !important;
+            background: transparent !important;
+            padding: 1rem !important;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #a5d6ff;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .mods-textarea::placeholder {
+            color: #a5d6ff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <span>🎮</span> MC Manager
+        </div>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">
+                <span>📊</span> Dashboard
+            </a>
+            <a href="/clusters.html" class="nav-link">
+                <span>🌐</span> Clusters
+            </a>
+            <a href="/servers.html" class="nav-link active">
+                <span>🖥️</span> Servers
+            </a>
+            <a href="/announcements.html" class="nav-link">
+                <span>📢</span> Announcements
+            </a>
+            <a href="/launcher.html" class="nav-link">
+                <span>🚀</span> Launcher
+            </a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <input type="text" class="search-bar" placeholder="Search servers..." id="searchInput">
+            <div class="user-profile">
+                <!-- User profile placeholder -->
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div class="page-header">
+                <h1>Game Servers</h1>
+                <button class="btn btn-primary" onclick="openModal('create')">
+                    <span>+</span> New Server
+                </button>
+            </div>
+
+            <div class="grid" id="serverGrid">
+                <!-- Servers will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="serverModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add Server</h2>
+            <form id="serverForm">
+                <input type="hidden" id="editMode" value="false">
+                <input type="hidden" id="originalName" value="">
+
+                <div class="form-group">
+                    <label for="name">Server Name</label>
+                    <input type="text" id="name" name="name" required placeholder="e.g. survival-01">
+                </div>
+
+                <div class="form-group">
+                    <label for="clusterId">Cluster</label>
+                    <select id="clusterId" name="clusterId" required>
+                        <option value="">Select a cluster...</option>
+                    </select>
+                </div>
+
+                <div class="form-section-title">Server Mode</div>
+
+                <div class="form-group">
+                    <div class="mode-selector">
+                        <input type="radio" name="serverMode" id="modeOfficial" value="official" checked
+                            onchange="switchServerMode('official')">
+                        <label for="modeOfficial" class="mode-card">
+                            <span class="mode-icon">🎮</span>
+                            <span class="mode-title">Vanilla</span>
+                        </label>
+
+                        <input type="radio" name="serverMode" id="modeModpack" value="modpack"
+                            onchange="switchServerMode('modpack')">
+                        <label for="modeModpack" class="mode-card">
+                            <span class="mode-icon">📦</span>
+                            <span class="mode-title">Modpack</span>
+                        </label>
+                    </div>
+                </div>
+
+                <style>
+                    .mode-selector {
+                        display: flex;
+                        justify-content: center;
+                        gap: 1rem;
+                    }
+
+                    .mode-selector input[type="radio"] {
+                        display: none;
+                    }
+
+                    .mode-card {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.5rem;
+                        width: 140px;
+                        padding: 0.6rem 1rem;
+                        border: 2px solid #3a3a4a;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        background: #2a2a3a;
+                    }
+
+                    .mode-card:hover {
+                        border-color: #6366f1;
+                        background: #32324a;
+                    }
+
+                    .mode-selector input[type="radio"]:checked+.mode-card {
+                        border-color: #6366f1;
+                        background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+                        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+                    }
+
+                    .mode-icon {
+                        font-size: 1.2rem;
+                    }
+
+                    .mode-title {
+                        font-size: 0.9rem;
+                        font-weight: 600;
+                        color: #fff;
+                    }
+
+                    .mode-desc {
+                        display: none;
+                    }
+                </style>
+
+                <!-- 官方服务器配置 -->
+                <div id="officialConfig">
+                    <div class="form-section-title">Minecraft Configuration</div>
+
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="version">Version</label>
+                            <input type="text" id="version" name="version" value="latest">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="serverType">Type</label>
+                            <select id="serverType" name="serverType">
+                                <option value="PAPER" selected>Paper</option>
+                                <option value="FOLIA">Folia</option>
+                                <option value="PURPUR">Purpur</option>
+                                <option value="SPIGOT">Spigot</option>
+                                <option value="BUKKIT">Bukkit</option>
+                                <option value="VANILLA">Vanilla</option>
+                                <option value="FABRIC">Fabric</option>
+                                <option value="FORGE">Forge</option>
+                                <option value="NEOFORGE">NeoForge</option>
+                                <option value="QUILT">Quilt</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modrinthProjects">
+                            Modrinth Mods <span style="color: #888; font-weight: normal;">(Optional)</span>
+                        </label>
+                        <div class="mods-input-container">
+                            <div class="mods-header">
+                                <span class="mods-icon">🧩</span>
+                                <span class="mods-hint">One mod name or ID per line</span>
+                            </div>
+                            <textarea id="modrinthProjects" name="modrinthProjects" rows="4" class="mods-textarea"
+                                placeholder="fabric-api:0.119.2+1.21.4&#10;viaversion&#10;viabackwards:5.2.1&#10;lithium"></textarea>
+                        </div>
+                    </div>
+
+                    <style>
+                        .mods-input-container {
+                            background: #1e1e2e;
+                            border: 1px solid #3a3a4a;
+                            border-radius: 8px;
+                            overflow: hidden;
+                        }
+
+                        .mods-header {
+                            display: flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                            padding: 0.75rem 1rem;
+                            background: #252535;
+                            border-bottom: 1px solid #3a3a4a;
+                        }
+
+                        .mods-icon {
+                            font-size: 1.1rem;
+                        }
+
+                        .mods-hint {
+                            font-size: 0.8rem;
+                            color: #888;
+                        }
+
+                        .mods-textarea {
+                            width: 100%;
+                            border: none !important;
+                            background: transparent !important;
+                            padding: 1rem !important;
+                            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                            font-size: 0.9rem;
+                            line-height: 1.6;
+                            color: #a5d6ff;
+                            resize: vertical;
+                            min-height: 100px;
+                        }
+
+                        .mods-textarea::placeholder {
+                            color: #555;
+                        }
+
+                        .mods-textarea:focus {
+                            outline: none;
+                            box-shadow: none !important;
+                        }
+                    </style>
+                </div>
+
+                <!-- Modpack Configuration -->
+                <div id="modpackConfig" style="display: none;">
+                    <div class="form-section-title">Modpack Configuration</div>
+
+                    <div class="form-group">
+                        <label for="modrinthModpack">Modrinth Modpack URL (Full link with version)</label>
+                        <input type="text" id="modrinthModpack" name="modrinthModpack"
+                            placeholder="e.g. https://modrinth.com/modpack/cobblemon-fabric/version/1.6.1.4">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="maxPlayers">Max Players</label>
+                    <div class="number-input-group">
+                        <button type="button" class="num-btn" onclick="adjustNumber('maxPlayers', -100)">−</button>
+                        <input type="number" id="maxPlayers" name="maxPlayers" value="10000" min="1">
+                        <button type="button" class="num-btn" onclick="adjustNumber('maxPlayers', 100)">+</button>
+                    </div>
+                </div>
+
+                <div class="form-section-title">Resource Configuration</div>
+
+                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="memoryLimit">Memory (GB)</label>
+                        <div class="number-input-group">
+                            <button type="button" class="num-btn" onclick="adjustNumber('memoryLimit', -1)">−</button>
+                            <input type="number" id="memoryLimit" name="memoryLimit" value="28" min="1">
+                            <button type="button" class="num-btn" onclick="adjustNumber('memoryLimit', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cpuLimit">CPU (Cores)</label>
+                        <div class="number-input-group">
+                            <button type="button" class="num-btn" onclick="adjustNumber('cpuLimit', -1)">−</button>
+                            <input type="number" id="cpuLimit" name="cpuLimit" value="28" min="1">
+                            <button type="button" class="num-btn" onclick="adjustNumber('cpuLimit', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="storageSize">Storage (GB)</label>
+                        <div class="number-input-group">
+                            <button type="button" class="num-btn" onclick="adjustNumber('storageSize', -10)">−</button>
+                            <input type="number" id="storageSize" name="storageSize" value="100" min="1">
+                            <button type="button" class="num-btn" onclick="adjustNumber('storageSize', 10)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    .number-input-group {
+                        display: flex;
+                        align-items: center;
+                        gap: 0;
+                    }
+
+                    .number-input-group input[type="number"] {
+                        flex: 1;
+                        text-align: center;
+                        border-radius: 0;
+                    }
+
+                    .number-input-group input[type="number"]::-webkit-outer-spin-button,
+                    .number-input-group input[type="number"]::-webkit-inner-spin-button {
+                        -webkit-appearance: none;
+                        margin: 0;
+                    }
+
+                    .num-btn {
+                        width: 40px;
+                        height: 38px;
+                        border: 1px solid #3a3a4a;
+                        background: #2a2a3a;
+                        color: #fff;
+                        font-size: 1.2rem;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+
+                    .num-btn:first-child {
+                        border-radius: 6px 0 0 6px;
+                    }
+
+                    .num-btn:last-child {
+                        border-radius: 0 6px 6px 0;
+                    }
+
+                    .num-btn:hover {
+                        background: #6366f1;
+                    }
+
+                    .num-btn:active {
+                        transform: scale(0.95);
+                    }
+                </style>
+
+                <div class="card-actions" style="justify-content: flex-end; margin-top: 2rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Server</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('serverModal');
+        const form = document.getElementById('serverForm');
+        const grid = document.getElementById('serverGrid');
+        const clusterSelect = document.getElementById('clusterId');
+        const searchInput = document.getElementById('searchInput');
+
+        let allServers = [];
+
+        async function openModal(mode, server = null) {
+            modal.style.display = 'flex';
+
+            // 先加载集群列表
+            await fetchClusters();
+
+            const isEdit = mode === 'edit';
+            document.getElementById('editMode').value = isEdit;
+            document.getElementById('modalTitle').textContent = isEdit ? 'Edit Server' : 'Add Server';
+
+            if (isEdit && server) {
+                document.getElementById('originalName').value = server.name;
+                document.getElementById('name').value = server.name;
+                document.getElementById('name').disabled = true;
+                document.getElementById('name').style.opacity = '0.6';
+
+                // 设置集群值并禁用
+                document.getElementById('clusterId').value = server.clusterId;
+                document.getElementById('clusterId').disabled = true;
+                document.getElementById('clusterId').style.opacity = '0.6';
+
+                document.getElementById('version').value = server.minecraftConfig.version;
+                document.getElementById('serverType').value = server.minecraftConfig.serverType;
+                document.getElementById('modrinthProjects').value = server.minecraftConfig.modrinthProjects || '';
+                document.getElementById('modrinthModpack').value = server.minecraftConfig.modrinthModpack || '';
+                // 根据配置选择模式
+                if (server.minecraftConfig.modrinthModpack) {
+                    document.querySelector('input[name="serverMode"][value="modpack"]').checked = true;
+                    switchServerMode('modpack');
+                } else {
+                    document.querySelector('input[name="serverMode"][value="official"]').checked = true;
+                    switchServerMode('official');
+                }
+                document.getElementById('maxPlayers').value = server.minecraftConfig.maxPlayers;
+
+                // 解析带单位的值，填入表单（取整数）
+                document.getElementById('memoryLimit').value = parseValue(server.k8sConfig.memoryLimit);
+                document.getElementById('cpuLimit').value = parseValue(server.k8sConfig.cpuLimit);
+                document.getElementById('storageSize').value = parseValue(server.k8sConfig.storageSize);
+            } else {
+                form.reset();
+                document.getElementById('name').disabled = false;
+                document.getElementById('name').style.opacity = '1';
+                document.getElementById('clusterId').disabled = false;
+                document.getElementById('clusterId').style.opacity = '1';
+                // Set defaults
+                document.getElementById('version').value = 'latest';
+                document.getElementById('serverType').value = 'FOLIA';
+                document.getElementById('modrinthProjects').value = '';
+                document.getElementById('modrinthModpack').value = '';
+                document.getElementById('maxPlayers').value = 10000;
+                document.getElementById('memoryLimit').value = 28;
+                document.getElementById('cpuLimit').value = 28;
+                document.getElementById('storageSize').value = 100;
+            }
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+            // 重置模式选择
+            switchServerMode('official');
+            document.querySelector('input[name="serverMode"][value="official"]').checked = true;
+        }
+
+        // 切换服务器模式
+        function switchServerMode(mode) {
+            const officialConfig = document.getElementById('officialConfig');
+            const modpackConfig = document.getElementById('modpackConfig');
+
+            if (mode === 'official') {
+                officialConfig.style.display = 'block';
+                modpackConfig.style.display = 'none';
+                // 清空整合包配置
+                document.getElementById('modrinthModpack').value = '';
+            } else {
+                officialConfig.style.display = 'none';
+                modpackConfig.style.display = 'block';
+                // 清空官方配置
+                document.getElementById('modrinthProjects').value = '';
+            }
+        }
+
+        // 调整数字输入
+        function adjustNumber(id, delta) {
+            const input = document.getElementById(id);
+            const min = parseInt(input.min) || 0;
+            const newValue = parseInt(input.value) + delta;
+            input.value = Math.max(min, newValue);
+        }
+
+        async function fetchClusters() {
+            try {
+                const res = await fetch('/api/clusters');
+                if (!res.ok) return;
+                const clusters = await res.json();
+                // Only update if not already populated or if we want to refresh
+                if (clusterSelect.options.length <= 1) {
+                    clusterSelect.innerHTML = '<option value="">Select a cluster...</option>' +
+                        clusters.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                }
+            } catch (error) {
+                console.error('Error fetching clusters:', error);
+            }
+        }
+
+        async function fetchServers() {
+            try {
+                const res = await fetch('/api/servers');
+                if (!res.ok) return;
+                allServers = await res.json();
+                renderGrid(allServers);
+            } catch (error) {
+                console.error('Error fetching servers:', error);
+            }
+        }
+
+        // 解析带单位的值，返回整数
+        function parseValue(val) {
+            if (!val) return '';
+            const num = String(val).replace(/[^0-9.]/g, '');
+            return num ? Math.round(parseFloat(num)) : '';
+        }
+
+        function renderGrid(servers) {
+            grid.innerHTML = servers.map(server => {
+                const mc = server.minecraftConfig;
+                const k8s = server.k8sConfig;
+                const hasMods = mc.modrinthProjects && mc.modrinthProjects.trim();
+                const hasModpack = mc.modrinthModpack && mc.modrinthModpack.trim();
+                const modsCount = hasMods ? mc.modrinthProjects.split(/[\n,]/).filter(m => m.trim()).length : 0;
+
+                return `
+                <div class="server-card">
+                    <div class="server-header">
+                        <div class="server-icon">🖥️</div>
+                        <div class="server-info">
+                            <div class="server-name">${server.name}</div>
+                            <div class="server-meta">
+                                🌐 ${server.clusterName || 'Unknown'} · ${mc.serverType} ${mc.version}
+                            </div>
+                        </div>
+                        <span class="server-status status-${server.status.toLowerCase()}">${server.status}</span>
+                    </div>
+                    <div class="server-specs">
+                        <div class="spec-item">
+                            <span class="spec-label">Port</span>
+                            <span class="spec-value">${server.nodePort}</span>
+                        </div>
+                        <div class="spec-item">
+                            <span class="spec-label">Players</span>
+                            <span class="spec-value">${mc.maxPlayers}<span class="spec-unit">人</span></span>
+                        </div>
+                        <div class="spec-item">
+                            <span class="spec-label">Memory</span>
+                            <span class="spec-value">${parseValue(k8s.memoryLimit)}<span class="spec-unit">G</span></span>
+                        </div>
+                        <div class="spec-item">
+                            <span class="spec-label">CPU</span>
+                            <span class="spec-value">${parseValue(k8s.cpuLimit)}<span class="spec-unit">核</span></span>
+                        </div>
+                        <div class="spec-item">
+                            <span class="spec-label">Storage</span>
+                            <span class="spec-value">${parseValue(k8s.storageSize)}<span class="spec-unit">G</span></span>
+                        </div>
+                    </div>
+                    ${hasModpack ? `
+                    <div class="server-mods">
+                        <span class="mods-icon">📦</span>
+                        <span class="mods-label">Modpack:</span>
+                        <span class="mods-value">${mc.modrinthModpack}</span>
+                    </div>
+                    ` : ''}
+                    ${hasMods ? `
+                    <div class="server-mods">
+                        <span class="mods-icon">🧩</span>
+                        <span class="mods-label">Mods:</span>
+                        <span class="mods-value">${modsCount} installed</span>
+                    </div>
+                    ` : ''}
+                    <div class="server-actions">
+                        <button class="btn btn-sm btn-secondary" onclick='editServer(${JSON.stringify(server)})'>Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteServer('${server.name}')">Delete</button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function editServer(server) {
+            openModal('edit', server);
+        }
+
+        async function deleteServer(name) {
+            const confirmed = await showConfirm({
+                type: 'danger',
+                title: 'Delete Server',
+                message: `Are you sure you want to delete server "${name}"? This action cannot be undone.`,
+                confirmText: 'Delete',
+                cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/api/servers/${name}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || 'Failed to delete server');
+                }
+                showToast('success', 'Deleted', 'Server has been deleted successfully');
+                fetchServers();
+            } catch (error) {
+                console.error('Error deleting server:', error);
+                showToast('error', 'Error', error.message);
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const isEdit = document.getElementById('editMode').value === 'true';
+
+            const modrinthProjects = formData.get('modrinthProjects');
+            const modrinthModpack = formData.get('modrinthModpack');
+            const data = {
+                minecraftConfig: {
+                    version: formData.get('version'),
+                    serverType: modrinthModpack ? 'MODRINTH' : formData.get('serverType'),
+                    maxPlayers: parseInt(formData.get('maxPlayers')),
+                    modrinthProjects: modrinthProjects || null,
+                    modrinthModpack: modrinthModpack || null
+                },
+                k8sConfig: {
+                    memoryLimit: parseInt(formData.get('memoryLimit')),
+                    cpuLimit: parseInt(formData.get('cpuLimit')),
+                    storageSize: parseInt(formData.get('storageSize'))
+                }
+            };
+
+            if (!isEdit) {
+                data.name = formData.get('name');
+                data.clusterId = parseInt(formData.get('clusterId'));
+            }
+
+            try {
+                const url = isEdit ? `/api/servers/${document.getElementById('originalName').value}` : '/api/servers';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.message || 'Failed to save server');
+                }
+
+                showToast('success', 'Saved', isEdit ? 'Server updated successfully' : 'Server created successfully');
+                closeModal();
+                fetchServers();
+            } catch (error) {
+                console.error('Error saving server:', error);
+                showToast('error', 'Error', error.message);
+            }
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allServers.filter(s =>
+                s.name.toLowerCase().includes(term) ||
+                s.minecraftConfig.serverType.toLowerCase().includes(term) ||
+                (s.clusterName && s.clusterName.toLowerCase().includes(term))
+            );
+            renderGrid(filtered);
+        });
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Initial load
+        fetchServers();
+
+        // Setup form validation
+        setupFormValidation(form);
+    </script>
+</body>
+
+</html>

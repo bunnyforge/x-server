@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Launcher Details - Minecraft K8s Manager</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .control-panel {
+            background-color: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .control-panel input[type="text"] {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .cluster-card {
+            background-color: var(--bg-secondary);
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cluster-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .cluster-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .cluster-domain {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .server-list {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        }
+
+        .server-item {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 1.25rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .server-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .server-name {
+            font-weight: 600;
+            font-size: 1.125rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .server-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .server-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+        }
+
+        .info-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .server-metrics {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            margin-top: 0.75rem;
+        }
+
+        .metrics-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .metrics-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-running {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .status-creating {
+            background-color: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .error-msg {
+            color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+            padding: 1rem;
+            border-radius: 0.375rem;
+            display: none;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <span>🎮</span> MC Manager
+        </div>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">
+                <span>📊</span> Dashboard
+            </a>
+            <a href="/clusters.html" class="nav-link">
+                <span>🌐</span> Clusters
+            </a>
+            <a href="/servers.html" class="nav-link">
+                <span>🖥️</span> Servers
+            </a>
+            <a href="/announcements.html" class="nav-link">
+                <span>📢</span> Announcements
+            </a>
+            <a href="/launcher.html" class="nav-link active">
+                <span>🚀</span> Launcher
+            </a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <div style="flex: 1;"></div>
+            <div class="user-profile">
+                <!-- User profile placeholder -->
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div class="page-header">
+                <h1>Launcher Details</h1>
+            </div>
+
+            <div class="control-panel">
+                <input type="text" id="tokenInput" placeholder="Enter Launcher Token"
+                    value="9f8e7d6c-5b4a-3f2e-1d0c-9b8a7f6e5d4d">
+                <button class="btn btn-primary" onclick="fetchData()">Connect & Fetch</button>
+                <button class="btn btn-secondary" onclick="fetchAnnouncements()">📢 View Announcements</button>
+            </div>
+
+            <div id="errorMsg" class="error-msg"></div>
+            <div id="announcementSection" style="display: none; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1rem;">📢 Announcements</h2>
+                <div id="announcementList"></div>
+            </div>
+            <div id="results" class="results"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchData() {
+            const token = document.getElementById('tokenInput').value;
+            const resultsDiv = document.getElementById('results');
+            const errorDiv = document.getElementById('errorMsg');
+
+            resultsDiv.innerHTML = '<div style="text-align:center; color: var(--text-secondary);">Loading...</div>';
+            errorDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/launcher/data', {
+                    headers: {
+                        'X-MC-Launcher-Token': token
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                renderData(data);
+            } catch (error) {
+                resultsDiv.innerHTML = '';
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        function renderData(clusters) {
+            const resultsDiv = document.getElementById('results');
+
+            if (!clusters || clusters.length === 0) {
+                resultsDiv.innerHTML = '<div style="text-align:center; color: var(--text-secondary);">No clusters found.</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = clusters.map(cluster => `
+                <div class="cluster-card">
+                    <div class="cluster-header">
+                        <div class="cluster-name">🌐 ${cluster.name}</div>
+                        <div class="cluster-domain">${cluster.domain || 'No domain'}</div>
+                    </div>
+                    <div class="server-list">
+                        ${cluster.servers && cluster.servers.length > 0 ? cluster.servers.map(server => `
+                            <div class="server-item">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                    <div class="server-name">🖥️ ${server.name}</div>
+                                    <span class="status-badge ${server.status === 'RUNNING' ? 'status-running' : 'status-creating'}">
+                                        ${server.status}
+                                    </span>
+                                </div>
+                                
+                                <div class="server-info">
+                                    <div class="server-info-row">
+                                        <span class="info-label">🌐 连接地址</span>
+                                        <span class="info-value">${cluster.domain || 'N/A'}:${server.nodePort}</span>
+                                    </div>
+                                    <div class="server-info-row">
+                                        <span class="info-label">📦 服务器类型</span>
+                                        <span class="info-value">${server.serverType || 'N/A'}</span>
+                                    </div>
+                                    <div class="server-info-row">
+                                        <span class="info-label">🎮 版本</span>
+                                        <span class="info-value">${server.version || 'latest'}</span>
+                                    </div>
+                                    <div class="server-info-row">
+                                        <span class="info-label">👥 最大玩家</span>
+                                        <span class="info-value">${server.maxPlayers || 'N/A'}</span>
+                                    </div>
+                                    <div class="server-info-row">
+                                        <span class="info-label">🔒 正版验证</span>
+                                        <span class="info-value">${server.onlineMode ? '✅ 开启' : '❌ 关闭'}</span>
+                                    </div>
+                                    ${server.modrinthProjects ? `
+                                    <div class="server-info-row">
+                                        <span class="info-label">🧩 模组</span>
+                                        <span class="info-value" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${server.modrinthProjects}">${server.modrinthProjects}</span>
+                                    </div>
+                                    ` : ''}
+                                    ${server.modrinthModpack ? `
+                                    <div class="server-info-row">
+                                        <span class="info-label">📦 整合包</span>
+                                        <span class="info-value" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${server.modrinthModpack}">${server.modrinthModpack.split('/').pop()}</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+
+                                ${server.metrics ? `
+                                <div class="server-metrics">
+                                    <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem;">📊 实时状态</div>
+                                    <div class="metrics-row">
+                                        <span class="info-label">在线玩家</span>
+                                        <span class="info-value">${server.metrics.onlinePlayers !== null && server.metrics.onlinePlayers !== undefined ? server.metrics.onlinePlayers : '-'} / ${server.metrics.maxPlayers || server.maxPlayers || 'N/A'}</span>
+                                    </div>
+                                    <div class="metrics-row">
+                                        <span class="info-label">CPU 使用</span>
+                                        <span class="info-value">${server.metrics.cpuUsagePercent !== null && server.metrics.cpuUsagePercent !== undefined ? server.metrics.cpuUsagePercent.toFixed(2) + '%' : '-'}</span>
+                                    </div>
+                                    <div class="metrics-row">
+                                        <span class="info-label">内存使用</span>
+                                        <span class="info-value">${server.metrics.memoryUsagePercent !== null && server.metrics.memoryUsagePercent !== undefined ? server.metrics.memoryUsagePercent.toFixed(2) + '%' : '-'}</span>
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                        `).join('') : '<div style="color: var(--text-secondary); font-style: italic;">No servers</div>'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function fetchAnnouncements() {
+            const token = document.getElementById('tokenInput').value;
+            const announcementSection = document.getElementById('announcementSection');
+            const announcementList = document.getElementById('announcementList');
+            const errorDiv = document.getElementById('errorMsg');
+
+            announcementList.innerHTML = '<div style="text-align:center; color: var(--text-secondary);">Loading announcements...</div>';
+            errorDiv.style.display = 'none';
+            announcementSection.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/launcher/announcements', {
+                    headers: {
+                        'X-MC-Launcher-Token': token
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch announcements: ${response.status} ${response.statusText}`);
+                }
+
+                const announcements = await response.json();
+                renderAnnouncements(announcements);
+            } catch (error) {
+                announcementList.innerHTML = '';
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        function renderAnnouncements(announcements) {
+            const announcementList = document.getElementById('announcementList');
+
+            if (!announcements || announcements.length === 0) {
+                announcementList.innerHTML = '<div style="text-align:center; color: var(--text-secondary);">No announcements available.</div>';
+                return;
+            }
+
+            announcementList.innerHTML = announcements.map(announcement => `
+                <div class="cluster-card" style="margin-bottom: 1rem;">
+                    <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">
+                        ${announcement.title}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                        📅 ${new Date(announcement.createdAt).toLocaleString()}
+                    </div>
+                    <div style="padding: 1rem; background-color: rgba(255, 255, 255, 0.05); border-radius: 0.375rem; border: 1px solid var(--border-color);">
+                        ${announcement.content}
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+
+</html>

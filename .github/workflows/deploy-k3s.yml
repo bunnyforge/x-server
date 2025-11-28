@@ -1,0 +1,159 @@
+name: Deploy to K3s
+
+on:
+  push:
+    branches: [main, master]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_TAG="${GITHUB_SHA::7}"
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG} .
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+      
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+      
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+          echo "Kubeconfig configured successfully"
+      
+      - name: Verify K3s Connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+      
+      - name: Deploy to K3s
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: gamesmanager
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gamesmanager-secrets
+            namespace: gamesmanager
+          type: Opaque
+          stringData:
+            DB_URL: "${{ secrets.DB_URL }}"
+            DB_USERNAME: "${{ secrets.DB_USERNAME }}"
+            DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
+            AUTH_TOKEN: "${{ secrets.AUTH_TOKEN }}"
+            LAUNCHER_TOKEN: "${{ secrets.LAUNCHER_TOKEN }}"
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: gamesmanager
+            namespace: gamesmanager
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: gamesmanager
+            template:
+              metadata:
+                labels:
+                  app: gamesmanager
+              spec:
+                containers:
+                - name: gamesmanager
+                  image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+                  imagePullPolicy: Always
+                  ports:
+                  - containerPort: 8080
+                  envFrom:
+                  - secretRef:
+                      name: gamesmanager-secrets
+                  env:
+                  - name: SPRING_PROFILES_ACTIVE
+                    value: prod
+                  resources:
+                    requests:
+                      memory: "512Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "1Gi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /actuator/health
+                      port: 8080
+                    initialDelaySeconds: 60
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /actuator/health
+                      port: 8080
+                    initialDelaySeconds: 30
+                    periodSeconds: 5
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: gamesmanager
+            namespace: gamesmanager
+          spec:
+            type: ClusterIP
+            ports:
+            - name: http
+              port: 8080
+              targetPort: 8080
+            selector:
+              app: gamesmanager
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: gamesmanager
+            namespace: gamesmanager
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+          spec:
+            ingressClassName: traefik
+            tls:
+            - hosts:
+              - ${{ secrets.APP_DOMAIN }}
+              secretName: gamesmanager-tls
+            rules:
+            - host: ${{ secrets.APP_DOMAIN }}
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: gamesmanager
+                      port:
+                        number: 8080
+          EOF
+          
+          kubectl rollout status deployment/gamesmanager -n gamesmanager --timeout=5m

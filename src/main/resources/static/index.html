@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Minecraft K8s Manager</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .stat-card {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+            padding: 2rem;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-icon {
+            font-size: 3rem;
+            background-color: rgba(99, 102, 241, 0.1);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-color);
+        }
+
+        .stat-info h3 {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-info .value {
+            color: var(--text-primary);
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .welcome-section {
+            margin-bottom: 3rem;
+        }
+
+        .welcome-section h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-section p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+    </style>
+    <script src="/js/auth.js"></script>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <span>🎮</span> MC Manager
+        </div>
+        <nav class="nav-links">
+            <a href="/" class="nav-link active">
+                <span>📊</span> Dashboard
+            </a>
+            <a href="/clusters.html" class="nav-link">
+                <span>🌐</span> Clusters
+            </a>
+            <a href="/servers.html" class="nav-link">
+                <span>🖥️</span> Servers
+            </a>
+            <a href="/announcements.html" class="nav-link">
+                <span>📢</span> Announcements
+            </a>
+            <a href="/launcher.html" class="nav-link">
+                <span>🚀</span> Launcher
+            </a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <div style="flex: 1;"></div>
+            <div class="user-profile">
+                <!-- User profile placeholder -->
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div class="welcome-section">
+                <h1>Welcome to MC Manager</h1>
+                <p>Manage your Minecraft servers across multiple Kubernetes clusters</p>
+            </div>
+
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                <div class="stat-card">
+                    <div class="stat-icon">🌐</div>
+                    <div class="stat-info">
+                        <h3>Active Clusters</h3>
+                        <div class="value" id="clusterCount">-</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🖥️</div>
+                    <div class="stat-info">
+                        <h3>Game Servers</h3>
+                        <div class="value" id="serverCount">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchStats() {
+            try {
+                const [clustersRes, serversRes] = await Promise.all([
+                    fetch('/api/clusters'),
+                    fetch('/api/servers')
+                ]);
+
+                const clusters = await clustersRes.json();
+                const servers = await serversRes.json();
+
+                document.getElementById('clusterCount').textContent = clusters.length;
+                document.getElementById('serverCount').textContent = servers.length;
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                document.getElementById('clusterCount').textContent = '0';
+                document.getElementById('serverCount').textContent = '0';
+            }
+        }
+
+        fetchStats();
+    </script>
+</body>
+
+</html>

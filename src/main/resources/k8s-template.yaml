@@ -1,0 +1,120 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${namespace}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: minecraft-server
+  name: ${name}
+  namespace: ${namespace}
+spec:
+  replicas: ${replicas}
+  serviceName: ${name}
+  selector:
+    matchLabels:
+      app: minecraft-server
+  template:
+    metadata:
+      labels:
+        app: minecraft-server
+    spec:
+      containers:
+      - name: minecraft-server
+        image: itzg/minecraft-server
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 25565
+          protocol: TCP
+          name: minecraft
+        - containerPort: 25565
+          protocol: UDP
+          name: query
+        env:
+        - name: EULA
+          value: "TRUE"
+        # 模式1: 普通服务器（TYPE + VERSION + 可选的 MODRINTH_PROJECTS）
+        - name: TYPE
+          value: "${serverType}"
+        - name: VERSION
+          value: "${version}"
+        - name: MODRINTH_PROJECTS
+          value: "${modrinthProjects}"
+        # 模式2: 整合包（MODPACK_PLATFORM + MODRINTH_MODPACK）
+        - name: MODPACK_PLATFORM
+          value: "${modpackPlatform}"
+        - name: MODRINTH_MODPACK
+          value: "${modrinthModpack}"
+        - name: ONLINE_MODE
+          value: "${onlineMode}"
+        - name: MAX_PLAYERS
+          value: "${maxPlayers}"
+        - name: INIT_MEMORY
+          value: "${initMemory}"
+        - name: MAX_MEMORY
+          value: "${maxMemory}"
+        - name: JVM_XX_OPTS
+          value: "${jvmOptions}"
+        - name: ENABLE_QUERY
+          value: "true"
+        - name: PAPER_ASYNC_CHUNKS
+          value: "true"
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        readinessProbe:
+          exec:
+            command:
+            - mc-monitor
+            - status
+            - --host
+            - localhost
+            - --port
+            - "25565"
+          initialDelaySeconds: 300    # 改成 3 分钟，给足启动时间
+          periodSeconds: 10           # 改成 10 秒，减少探测频率
+          failureThreshold: 60        # 60 × 10 = 600 秒（10 分钟）容错
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "${memoryRequest}"
+            cpu: "${cpuRequest}"
+          limits:
+            memory: "${memoryLimit}"
+            cpu: "${cpuLimit}"
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: ${storageClassName}
+      resources:
+        requests:
+          storage: ${storageSize}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: minecraft-server
+  name: ${name}
+  namespace: ${namespace}
+spec:
+  ports:
+  - name: minecraft-tcp
+    port: 25565
+    targetPort: 25565
+    nodePort: ${nodePort}
+    protocol: TCP
+  - name: minecraft-udp
+    port: 25565
+    targetPort: 25565
+    nodePort: ${nodePort}
+    protocol: UDP
+  selector:
+    app: minecraft-server
+  type: NodePort
