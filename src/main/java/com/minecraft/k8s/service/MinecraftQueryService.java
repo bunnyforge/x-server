@@ -1,7 +1,10 @@
 package com.minecraft.k8s.service;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.minecraft.k8s.config.CacheConfig;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -12,6 +15,8 @@ import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Minecraft Query 协议客户端
@@ -19,21 +24,52 @@ import java.nio.charset.StandardCharsets;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MinecraftQueryService {
 
     private static final int TIMEOUT_MS = 3000;
     private static final byte HANDSHAKE_TYPE = 9;
     private static final byte STAT_TYPE = 0;
 
+    private final Executor cacheRefreshExecutor;
+
     /**
-     * 获取在线玩家数(带缓存)
+     * 异步加载缓存：key = "host:port", value = 在线玩家数
+     */
+    private AsyncLoadingCache<String, Integer> playerCountCache;
+
+    @PostConstruct
+    public void init() {
+        playerCountCache = CacheConfig.<String, Integer>newCacheBuilder()
+                .buildAsync((key, executor) -> {
+                    String[] parts = key.split(":");
+                    String host = parts[0];
+                    int port = Integer.parseInt(parts[1]);
+                    return CompletableFuture.supplyAsync(() -> doGetOnlinePlayerCount(host, port), cacheRefreshExecutor);
+                });
+    }
+
+    /**
+     * 获取在线玩家数(带异步刷新缓存)
      * 
      * @param host 服务器地址
      * @param port 服务器端口
      * @return 在线玩家数,如果获取失败返回 null
      */
-    @Cacheable(value = "serverMetrics", key = "#host + ':' + #port + ':players'")
     public Integer getOnlinePlayerCount(String host, int port) {
+        try {
+            String key = host + ":" + port;
+            return playerCountCache.get(key).join();
+        } catch (Exception e) {
+            log.error("Failed to get player count from cache: {}:{}", host, port, e);
+            return null;
+        }
+    }
+
+    /**
+     * 实际执行 Query 协议获取玩家数
+     */
+    private Integer doGetOnlinePlayerCount(String host, int port) {
 
         try (DatagramSocket socket = new DatagramSocket()) {
             socket.setSoTimeout(TIMEOUT_MS);

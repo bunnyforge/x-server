@@ -1,5 +1,8 @@
 package com.minecraft.k8s.service;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.minecraft.k8s.config.CacheConfig;
+import com.minecraft.k8s.dto.launcher.ServerMetricsDto;
 import io.kubernetes.client.Metrics;
 import io.kubernetes.client.custom.ContainerMetrics;
 import io.kubernetes.client.custom.PodMetrics;
@@ -10,15 +13,16 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1ResourceRequirements;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-
-import com.minecraft.k8s.dto.launcher.ServerMetricsDto;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 /**
  * Kubernetes Metrics 服务
@@ -29,18 +33,57 @@ import java.util.Map;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class K8sMetricsService {
 
+    private final Executor cacheRefreshExecutor;
+
     /**
-     * 获取服务器指标(带 10 秒缓存)
+     * 存储每个 ApiClient 对应的缓存
+     * key = ApiClient hashCode, value = AsyncLoadingCache
+     */
+    private final Map<Integer, AsyncLoadingCache<String, ServerMetricsDto>> cacheMap = new ConcurrentHashMap<>();
+
+    /**
+     * 获取或创建指定 ApiClient 的缓存
+     */
+    private AsyncLoadingCache<String, ServerMetricsDto> getOrCreateCache(ApiClient client) {
+        return cacheMap.computeIfAbsent(System.identityHashCode(client), k ->
+                CacheConfig.<String, ServerMetricsDto>newCacheBuilder()
+                        .buildAsync((key, executor) -> {
+                            String[] parts = key.split(":", 2);
+                            String namespace = parts[0];
+                            String podName = parts[1];
+                            return CompletableFuture.supplyAsync(
+                                    () -> doGetServerMetrics(client, namespace, podName),
+                                    cacheRefreshExecutor
+                            );
+                        })
+        );
+    }
+
+    /**
+     * 获取服务器指标(带异步刷新缓存)
      * 
      * @param client K8s API 客户端
      * @param namespace 命名空间
      * @param podName Pod 名称(StatefulSet 名称)
      * @return 服务器指标,如果获取失败返回 null
      */
-    @Cacheable(value = "serverMetrics", key = "#namespace + ':' + #podName + ':metrics'")
     public ServerMetricsDto getServerMetrics(ApiClient client, String namespace, String podName) {
+        try {
+            String key = namespace + ":" + podName;
+            return getOrCreateCache(client).get(key).join();
+        } catch (Exception e) {
+            log.error("Failed to get metrics from cache: {}/{}", namespace, podName, e);
+            return null;
+        }
+    }
+
+    /**
+     * 实际执行获取服务器指标
+     */
+    private ServerMetricsDto doGetServerMetrics(ApiClient client, String namespace, String podName) {
         try {
             // 1. 获取 Pod Metrics
             Metrics metricsApi = new Metrics(client);
