@@ -11,6 +11,9 @@ import lombok.Data;
 @Data
 @Schema(description = "Minecraft 服务器")
 public class MinecraftServer {
+    @Schema(description = "服务器 ID", example = "1")
+    private Long id;
+
     @Schema(description = "命名空间", example = "minecraft31003")
     private String namespace;
 

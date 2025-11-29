@@ -17,6 +17,9 @@ import lombok.NoArgsConstructor;
 @Schema(description = "启动器服务器信息")
 public class LauncherServerDto {
 
+    @Schema(description = "服务器 ID", example = "1")
+    private Long id;
+
     @Schema(description = "服务器名称", example = "my-minecraft-server")
     private String name;
 

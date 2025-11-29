@@ -21,6 +21,7 @@ public class MinecraftServerMapper {
         }
 
         MinecraftServer server = new MinecraftServer();
+        server.setId(entity.getId());
         server.setNamespace(entity.getNamespace());
         server.setName(entity.getName());
         server.setNodePort(entity.getNodePort());

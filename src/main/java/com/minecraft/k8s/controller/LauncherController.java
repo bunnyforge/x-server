@@ -102,6 +102,7 @@ public class LauncherController {
                 var config = server.getMinecraftConfig();
 
                 LauncherServerDto.LauncherServerDtoBuilder builder = LauncherServerDto.builder()
+                                .id(server.getId())
                                 .name(server.getName())
                                 .nodePort(server.getNodePort())
                                 .status(server.getStatus());
