@@ -328,8 +328,9 @@ public class MinecraftServerService {
     }
 
     /**
-     * 计算初始内存 (最大内存的 50%)
-     * 例如: "4G" -> "2G", "2048M" -> "1024M"
+     * 计算初始内存 (最大内存的 75%)
+     * 对于 Minecraft 服务器，建议初始内存接近最大内存，减少启动时的 GC 压力
+     * 例如: "3072M" -> "2304M", "2048M" -> "1536M"
      */
     private String calculateInitMemory(String maxMemory) {
         if (maxMemory == null || maxMemory.isEmpty()) {
@@ -346,7 +347,7 @@ public class MinecraftServerService {
             }
 
             int maxValue = Integer.parseInt(numStr);
-            int initValue = maxValue / 2; // 50%
+            int initValue = (int) (maxValue * 0.75); // 75%
 
             return initValue + unit;
         } catch (Exception e) {

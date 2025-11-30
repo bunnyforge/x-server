@@ -9,10 +9,11 @@ import org.springframework.stereotype.Component;
 public class ResourceCalculator {
     
     /**
-     * 计算内存请求值（初始值为限制的 25%）
+     * 计算内存请求值（初始值为限制的 50%）
+     * 设为 50% 可以确保 K8s 调度时有足够的资源保障
      */
     public String calculateMemoryRequest(String memoryLimit) {
-        return calculatePercentage(memoryLimit, 0.25);
+        return calculatePercentage(memoryLimit, 0.50);
     }
     
     /**
@@ -23,7 +24,8 @@ public class ResourceCalculator {
     }
     
     /**
-     * 计算 JVM 最大内存（为内存限制的 80%）
+     * 计算 JVM 最大内存（为内存限制的 75%）
+     * 预留 25% 给 JVM 元空间、堆外内存和系统开销
      * JVM 使用 M 或 G 单位，不使用 Mi/Gi
      */
     public String calculateMaxMemory(String memoryLimit) {
@@ -37,7 +39,7 @@ public class ResourceCalculator {
         
         try {
             double value = Double.parseDouble(numStr);
-            double result = value * 0.8;
+            double result = value * 0.75;
             
             // 转换为 JVM 可识别的单位
             if (unit.equalsIgnoreCase("Gi") || unit.equalsIgnoreCase("G")) {
