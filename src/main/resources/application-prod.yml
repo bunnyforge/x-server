@@ -38,3 +38,4 @@ auth:
   token: ${AUTH_TOKEN:}
 launcher:
   token: ${LAUNCHER_TOKEN:}
+
